@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
+import { formatCurrency } from '../utils/currency';
 
 interface ProductCardProps {
   product: Product;
@@ -24,6 +25,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           src={product.imageUrl} 
           alt={product.name} 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = 'https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
           <div className="p-4 w-full">
@@ -38,7 +43,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
         <div className="absolute top-2 right-2">
           <span className="badge-accent">
-            ${product.price}/{product.priceUnit}
+            {formatCurrency(product.price)} per {product.priceUnit}
           </span>
         </div>
       </div>

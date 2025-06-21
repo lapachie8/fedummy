@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
+import { formatCurrency } from '../utils/currency';
 import CartItem from '../components/CartItem';
 import CheckoutSteps from '../components/CheckoutSteps';
 import { ShoppingBag } from 'lucide-react';
@@ -97,19 +98,19 @@ const CartPage: React.FC = () => {
               <div className="border-b border-secondary-200 pb-4">
                 <div className="flex justify-between mb-2">
                   <span className="text-secondary-600">Items ({cart.reduce((sum, item) => sum + item.quantity, 0)})</span>
-                  <span>${cartTotal.toFixed(2)}</span>
+                  <span>{formatCurrency(cartTotal)}</span>
                 </div>
                 
                 <div className="flex justify-between">
                   <span className="text-secondary-600">Delivery Fee</span>
-                  <span>$0.00</span>
+                  <span>Rp 0</span>
                 </div>
               </div>
               
               <div className="py-4 border-b border-secondary-200">
                 <div className="flex justify-between font-bold">
                   <span>Total</span>
-                  <span>${cartTotal.toFixed(2)}</span>
+                  <span>{formatCurrency(cartTotal)}</span>
                 </div>
               </div>
               

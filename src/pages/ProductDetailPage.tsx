@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { products } from '../data/products';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
+import { formatCurrency } from '../utils/currency';
 import { ShoppingCart, ChevronRight, MinusCircle, PlusCircle } from 'lucide-react';
 
 const ProductDetailPage: React.FC = () => {
@@ -93,6 +94,10 @@ const ProductDetailPage: React.FC = () => {
                 src={product.imageUrl} 
                 alt={product.name} 
                 className="w-full h-auto object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = 'https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
+                }}
               />
             </div>
             
@@ -101,7 +106,7 @@ const ProductDetailPage: React.FC = () => {
               
               <div className="flex items-center mb-4">
                 <span className="text-2xl font-bold text-accent-600">
-                  ${product.price}/{product.priceUnit}
+                  {formatCurrency(product.price)} per {product.priceUnit}
                 </span>
               </div>
               
@@ -171,7 +176,7 @@ const ProductDetailPage: React.FC = () => {
               
               <div className="mb-6">
                 <p className="text-lg font-medium">
-                  Total: <span className="text-accent-600">${totalPrice.toFixed(2)}</span>
+                  Total: <span className="text-accent-600">{formatCurrency(totalPrice)}</span>
                 </p>
               </div>
               

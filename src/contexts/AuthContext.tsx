@@ -7,6 +7,7 @@ const defaultAuthContext: AuthContextType = {
   register: async () => {},
   logout: () => {},
   isAuthenticated: false,
+  isAdmin: false,
 };
 
 const AuthContext = createContext<AuthContextType>(defaultAuthContext);
@@ -24,19 +25,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   });
 
   const isAuthenticated = !!user;
+  const isAdmin = user?.role === 'admin';
 
-  // Mock login functionality
+  // Mock login functionality with admin support
   const login = async (email: string, password: string) => {
-    // In a real app, this would make an API call to your backend
     return new Promise<void>((resolve, reject) => {
       setTimeout(() => {
-        // Simulating successful login
-        if (email && password) {
+        // Check for admin credentials
+        if (email === 'admin' && password === 'admin123') {
+          const userData: User = {
+            id: 'admin',
+            email: 'admin@juiweaprent.com',
+            name: 'Administrator',
+            isAuthenticated: true,
+            role: 'admin',
+          };
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+          resolve();
+        } else if (email && password) {
+          // Regular user login
           const userData: User = {
             id: '1',
             email,
             name: email.split('@')[0],
             isAuthenticated: true,
+            role: 'user',
           };
           setUser(userData);
           localStorage.setItem('user', JSON.stringify(userData));
@@ -50,7 +64,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Mock register functionality
   const register = async (email: string, password: string, name: string) => {
-    // In a real app, this would make an API call to your backend
     return new Promise<void>((resolve, reject) => {
       setTimeout(() => {
         if (email && password && name) {
@@ -59,6 +72,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             email,
             name,
             isAuthenticated: true,
+            role: 'user',
           };
           setUser(userData);
           localStorage.setItem('user', JSON.stringify(userData));
@@ -81,6 +95,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     isAuthenticated,
+    isAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

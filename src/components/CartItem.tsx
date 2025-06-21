@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CartItem as CartItemType } from '../types';
 import { Trash2, MinusCircle, PlusCircle } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
+import { formatCurrency } from '../utils/currency';
 
 interface CartItemProps {
   item: CartItemType;
@@ -37,12 +38,16 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
           src={product.imageUrl} 
           alt={product.name} 
           className="w-full h-full object-cover rounded-md"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = 'https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
+          }}
         />
       </div>
       
       <div className="flex-grow">
         <h3 className="font-medium">{product.name}</h3>
-        <p className="text-sm text-secondary-600">${product.price}/{product.priceUnit}</p>
+        <p className="text-sm text-secondary-600">{formatCurrency(product.price)} per {product.priceUnit}</p>
       </div>
       
       <div className="w-full sm:w-auto mt-4 sm:mt-0 grid grid-cols-2 sm:grid-cols-4 gap-4 items-center">
@@ -78,7 +83,7 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
         </div>
         
         <div className="text-right sm:text-center font-medium">
-          ${subtotal.toFixed(2)}
+          {formatCurrency(subtotal)}
         </div>
         
         <div className="text-right">

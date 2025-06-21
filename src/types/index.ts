@@ -20,6 +20,7 @@ export interface User {
   email: string;
   name: string;
   isAuthenticated: boolean;
+  role?: 'user' | 'admin';
 }
 
 export interface OrderDetails {
@@ -43,6 +44,7 @@ export interface AuthContextType {
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  isAdmin: boolean;
 }
 
 export interface CartContextType {
@@ -62,4 +64,15 @@ export interface OrderContextType {
   setShippingMethod: (method: string) => void;
   completeOrder: () => void;
   resetOrder: () => void;
+}
+
+export interface Transaction {
+  id: string;
+  customerName: string;
+  customerEmail: string;
+  items: CartItem[];
+  total: number;
+  status: 'pending' | 'active' | 'completed' | 'cancelled';
+  createdAt: Date;
+  dueDate: Date;
 }

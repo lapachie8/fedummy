@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
-import { ShoppingCart, User, Menu, X } from 'lucide-react';
+import { ShoppingCart, User, Menu, X, Plus, FileText, Shield } from 'lucide-react';
 
 const Header: React.FC = () => {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, isAdmin } = useAuth();
   const { cart } = useCart();
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -46,6 +46,18 @@ const Header: React.FC = () => {
             <Link to="/products" className="text-secondary-800 hover:text-primary-600 transition-colors">
               Products
             </Link>
+            {isAdmin && (
+              <>
+                <Link to="/admin/add-product" className="flex items-center text-secondary-800 hover:text-primary-600 transition-colors">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Product
+                </Link>
+                <Link to="/admin/transactions" className="flex items-center text-secondary-800 hover:text-primary-600 transition-colors">
+                  <FileText className="w-4 h-4 mr-1" />
+                  Transactions
+                </Link>
+              </>
+            )}
             <Link to="/about" className="text-secondary-800 hover:text-primary-600 transition-colors">
               About
             </Link>
@@ -68,16 +80,33 @@ const Header: React.FC = () => {
             {isAuthenticated ? (
               <div className="relative group">
                 <button className="flex items-center space-x-2 focus:outline-none">
+                  {isAdmin && <Shield className="w-4 h-4 text-accent-600" />}
                   <User className="w-5 h-5 text-secondary-800" />
                   <span className="text-secondary-800">{user?.name}</span>
                 </button>
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block">
-                  <Link to="/account" className="block px-4 py-2 text-sm text-secondary-800 hover:bg-secondary-50">
-                    My Account
-                  </Link>
-                  <Link to="/orders" className="block px-4 py-2 text-sm text-secondary-800 hover:bg-secondary-50">
-                    My Orders
-                  </Link>
+                  {isAdmin ? (
+                    <>
+                      <Link to="/admin/dashboard" className="block px-4 py-2 text-sm text-secondary-800 hover:bg-secondary-50">
+                        Admin Dashboard
+                      </Link>
+                      <Link to="/admin/add-product" className="block px-4 py-2 text-sm text-secondary-800 hover:bg-secondary-50">
+                        Add Product
+                      </Link>
+                      <Link to="/admin/transactions" className="block px-4 py-2 text-sm text-secondary-800 hover:bg-secondary-50">
+                        View Transactions
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link to="/account" className="block px-4 py-2 text-sm text-secondary-800 hover:bg-secondary-50">
+                        My Account
+                      </Link>
+                      <Link to="/orders" className="block px-4 py-2 text-sm text-secondary-800 hover:bg-secondary-50">
+                        My Orders
+                      </Link>
+                    </>
+                  )}
                   <button
                     onClick={logout}
                     className="block w-full text-left px-4 py-2 text-sm text-secondary-800 hover:bg-secondary-50"
@@ -129,6 +158,18 @@ const Header: React.FC = () => {
               <Link to="/products" className="text-secondary-800 hover:text-primary-600 transition-colors py-2">
                 Products
               </Link>
+              {isAdmin && (
+                <>
+                  <Link to="/admin/add-product" className="flex items-center text-secondary-800 hover:text-primary-600 transition-colors py-2">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Product
+                  </Link>
+                  <Link to="/admin/transactions" className="flex items-center text-secondary-800 hover:text-primary-600 transition-colors py-2">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Transactions
+                  </Link>
+                </>
+              )}
               <Link to="/about" className="text-secondary-800 hover:text-primary-600 transition-colors py-2">
                 About
               </Link>
@@ -138,12 +179,22 @@ const Header: React.FC = () => {
               
               {isAuthenticated ? (
                 <>
-                  <Link to="/account" className="text-secondary-800 hover:text-primary-600 transition-colors py-2">
-                    My Account
-                  </Link>
-                  <Link to="/orders" className="text-secondary-800 hover:text-primary-600 transition-colors py-2">
-                    My Orders
-                  </Link>
+                  {isAdmin ? (
+                    <>
+                      <Link to="/admin/dashboard" className="text-secondary-800 hover:text-primary-600 transition-colors py-2">
+                        Admin Dashboard
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link to="/account" className="text-secondary-800 hover:text-primary-600 transition-colors py-2">
+                        My Account
+                      </Link>
+                      <Link to="/orders" className="text-secondary-800 hover:text-primary-600 transition-colors py-2">
+                        My Orders
+                      </Link>
+                    </>
+                  )}
                   <button
                     onClick={logout}
                     className="text-left text-secondary-800 hover:text-primary-600 transition-colors py-2"

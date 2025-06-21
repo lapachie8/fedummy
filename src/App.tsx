@@ -17,11 +17,23 @@ import PaymentPage from './pages/checkout/PaymentPage';
 import ShippingPage from './pages/checkout/ShippingPage';
 import ConfirmationPage from './pages/checkout/ConfirmationPage';
 
+// Admin Pages
+import AddProductPage from './pages/admin/AddProductPage';
+import TransactionsPage from './pages/admin/TransactionsPage';
+
 // PrivateRoute component
 const PrivateRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
   const isAuthenticated = !!localStorage.getItem('user');
   
   return isAuthenticated ? element : <Navigate to="/login" state={{ from: window.location.pathname }} />;
+};
+
+// AdminRoute component
+const AdminRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
+  const user = localStorage.getItem('user');
+  const isAdmin = user ? JSON.parse(user).role === 'admin' : false;
+  
+  return isAdmin ? element : <Navigate to="/" />;
 };
 
 function App() {
@@ -57,6 +69,16 @@ function App() {
                   <Route 
                     path="/checkout/confirmation" 
                     element={<PrivateRoute element={<ConfirmationPage />} />} 
+                  />
+                  
+                  {/* Admin routes */}
+                  <Route 
+                    path="/admin/add-product" 
+                    element={<AdminRoute element={<AddProductPage />} />} 
+                  />
+                  <Route 
+                    path="/admin/transactions" 
+                    element={<AdminRoute element={<TransactionsPage />} />} 
                   />
                 </Routes>
               </main>

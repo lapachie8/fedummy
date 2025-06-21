@@ -51,31 +51,43 @@ const HomePage: React.FC = () => {
                 <div className="space-y-4">
                   <div className="rounded-lg overflow-hidden shadow-lg transform translate-y-4">
                     <img 
-                      src="./public/img/ayang.png" 
+                      src="/img/ayang.png" 
                       alt="Feixiao" 
                       className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
+                      }}
                     />
                   </div>
                   <div className="rounded-lg overflow-hidden shadow-lg">
                     <img 
-                      src="" 
-                      alt="Anime" 
+                      src="/img/kafka.png" 
+                      alt="Kafka" 
                       className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://images.pexels.com/photos/100582/pexels-photo-100582.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
+                      }}
                     />
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div className="rounded-lg overflow-hidden shadow-lg">
                     <img 
-                      src="" 
-                      alt="Anime" 
+                      src="/img/frieren.png" 
+                      alt="Frieren" 
                       className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://images.pexels.com/photos/1117132/pexels-photo-1117132.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
+                      }}
                     />
                   </div>
                   <div className="rounded-lg overflow-hidden shadow-lg transform translate-y-4">
                     <img 
-                      src="" 
-                      alt="anime" 
+                      src="https://images.pexels.com/photos/2582818/pexels-photo-2582818.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" 
+                      alt="Gaming Equipment" 
                       className="w-full h-48 object-cover"
                     />
                   </div>
@@ -91,7 +103,7 @@ const HomePage: React.FC = () => {
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold mb-8 text-center">Popular Categories</h2>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {categories.slice(1).map((category) => (
               <Link 
                 key={category}
@@ -121,76 +133,6 @@ const HomePage: React.FC = () => {
           <ProductGrid products={featuredProducts} />
         </div>
       </section>
-      
-      {/* Why choose us section
-      <section className="py-16 bg-secondary-900 text-white">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-12 text-center text-white">Why Choose Juiweaprent</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-accent-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold mb-2 text-white">Save Time & Money</h3>
-              <p className="text-secondary-300">
-                Rent only when you need it. No need to buy expensive equipment that you'll rarely use.
-              </p>
-            </div>
-            
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-accent-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold mb-2 text-white">Quality Guaranteed</h3>
-              <p className="text-secondary-300">
-                All our products are regularly maintained and checked to ensure they're in perfect condition.
-              </p>
-            </div>
-            
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-accent-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold mb-2 text-white">Flexible Pricing</h3>
-              <p className="text-secondary-300">
-                Daily, weekly, and monthly rental options to suit your needs and budget.
-              </p>
-            </div>
-            
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-accent-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold mb-2 text-white">Easy Delivery</h3>
-              <p className="text-secondary-300">
-                Choose between pickup or delivery options for maximum convenience.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section> */}
-      
-      {/* CTA Section
-      <section className="py-16 bg-primary-600 text-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">Ready to rent your next item?</h2>
-          <p className="text-xl mb-8 max-w-3xl mx-auto text-primary-100">
-            Browse our extensive catalog of high-quality rental items and find exactly what you need.
-          </p>
-          <Link to="/products" className="btn bg-white text-primary-600 hover:bg-primary-50 focus:ring-white">
-            Start Browsing
-          </Link>
-        </div>
-      </section> */}
     </div>
   );
 };
