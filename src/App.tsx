@@ -23,14 +23,15 @@ import TransactionsPage from './pages/admin/TransactionsPage';
 
 // PrivateRoute component
 const PrivateRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
-  const isAuthenticated = !!localStorage.getItem('user');
+  const user = localStorage.getItem('currentUser');
+  const isAuthenticated = !!user;
   
   return isAuthenticated ? element : <Navigate to="/login" state={{ from: window.location.pathname }} />;
 };
 
 // AdminRoute component
 const AdminRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
-  const user = localStorage.getItem('user');
+  const user = localStorage.getItem('currentUser');
   const isAdmin = user ? JSON.parse(user).role === 'admin' : false;
   
   return isAdmin ? element : <Navigate to="/" />;

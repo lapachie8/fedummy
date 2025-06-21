@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, User, Shield, AlertCircle } from 'lucide-react';
 
 interface LocationState {
   from?: string;
@@ -15,6 +15,7 @@ const LoginPage: React.FC = () => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loginType, setLoginType] = useState<'user' | 'admin'>('user');
   
   const { login, register } = useAuth();
   const navigate = useNavigate();
@@ -30,14 +31,33 @@ const LoginPage: React.FC = () => {
       if (isLogin) {
         await login(email, password);
       } else {
+        if (loginType === 'admin') {
+          setError('Admin accounts cannot be registered. Please contact system administrator.');
+          setLoading(false);
+          return;
+        }
         await register(email, password, name);
       }
       navigate(from);
-    } catch (err) {
-      setError('Failed to authenticate. Please check your credentials.');
-      console.error(err);
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLoginTypeChange = (type: 'user' | 'admin') => {
+    setLoginType(type);
+    setError('');
+    // Clear form when switching types
+    setEmail('');
+    setPassword('');
+    setName('');
+    
+    // Pre-fill admin credentials for demo
+    if (type === 'admin') {
+      setEmail('admin');
+      setPassword('admin123');
     }
   };
   
@@ -49,10 +69,60 @@ const LoginPage: React.FC = () => {
             <h1 className="text-2xl font-bold mb-6 text-center">
               {isLogin ? 'Sign In to Your Account' : 'Create a New Account'}
             </h1>
+
+            {/* Login Type Selector - Only show for login */}
+            {isLogin && (
+              <div className="mb-6">
+                <div className="flex rounded-lg border border-secondary-300 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => handleLoginTypeChange('user')}
+                    className={`flex-1 flex items-center justify-center py-3 px-4 text-sm font-medium transition-colors ${
+                      loginType === 'user'
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-white text-secondary-700 hover:bg-secondary-50'
+                    }`}
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    User Login
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLoginTypeChange('admin')}
+                    className={`flex-1 flex items-center justify-center py-3 px-4 text-sm font-medium transition-colors ${
+                      loginType === 'admin'
+                        ? 'bg-accent-600 text-white'
+                        : 'bg-white text-secondary-700 hover:bg-secondary-50'
+                    }`}
+                  >
+                    <Shield className="w-4 h-4 mr-2" />
+                    Admin Login
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Admin Login Info */}
+            {isLogin && loginType === 'admin' && (
+              <div className="mb-4 p-3 bg-accent-50 border border-accent-200 rounded-md">
+                <div className="flex items-start">
+                  <AlertCircle className="w-5 h-5 text-accent-600 mr-2 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-medium text-accent-800 mb-1">Admin Access</p>
+                    <p className="text-accent-700">
+                      Use credentials: <strong>admin</strong> / <strong>admin123</strong>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {error && (
-              <div className="mb-4 p-3 bg-error-50 text-error-600 rounded-md">
-                {error}
+              <div className="mb-4 p-3 bg-error-50 border border-error-200 rounded-md">
+                <div className="flex items-start">
+                  <AlertCircle className="w-5 h-5 text-error-600 mr-2 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-error-700">{error}</p>
+                </div>
               </div>
             )}
             
@@ -75,14 +145,14 @@ const LoginPage: React.FC = () => {
               
               <div className="mb-4">
                 <label className="block text-sm font-medium text-secondary-700 mb-1">
-                  Email Address
+                  {loginType === 'admin' ? 'Username' : 'Email Address'}
                 </label>
                 <input
-                  type="email"
+                  type={loginType === 'admin' ? 'text' : 'email'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="input"
-                  placeholder="you@example.com"
+                  placeholder={loginType === 'admin' ? 'admin' : 'you@example.com'}
                   required
                 />
               </div>
@@ -116,7 +186,11 @@ const LoginPage: React.FC = () => {
               
               <button
                 type="submit"
-                className="btn-primary w-full py-2.5"
+                className={`w-full py-2.5 font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  loginType === 'admin'
+                    ? 'bg-accent-600 text-white hover:bg-accent-700 focus:ring-accent-500'
+                    : 'btn-primary'
+                }`}
                 disabled={loading}
               >
                 {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Create Account'}
@@ -127,12 +201,34 @@ const LoginPage: React.FC = () => {
               <p className="text-secondary-600">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}
                 <button
-                  onClick={() => setIsLogin(!isLogin)}
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setError('');
+                    setLoginType('user');
+                    setEmail('');
+                    setPassword('');
+                    setName('');
+                  }}
                   className="ml-1 text-primary-600 hover:text-primary-700 font-medium"
                 >
                   {isLogin ? 'Sign up' : 'Sign in'}
                 </button>
               </p>
+            </div>
+
+            {/* Demo Accounts Info */}
+            <div className="mt-6 pt-6 border-t border-secondary-200">
+              <h3 className="text-sm font-medium text-secondary-700 mb-3">Demo Accounts:</h3>
+              <div className="space-y-2 text-xs text-secondary-600">
+                <div className="flex justify-between">
+                  <span>Admin:</span>
+                  <span className="font-mono">admin / admin123</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>User:</span>
+                  <span>Register or use any email/password</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
