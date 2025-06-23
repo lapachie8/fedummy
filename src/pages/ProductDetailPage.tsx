@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { products } from '../data/products';
+import { getAllProducts } from '../data/products';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency } from '../utils/currency';
@@ -14,8 +14,24 @@ const ProductDetailPage: React.FC = () => {
   
   const [quantity, setQuantity] = useState(1);
   const [rentalDays, setRentalDays] = useState(1);
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
   
-  const product = products.find(p => p.id === Number(id));
+  useEffect(() => {
+    // Get fresh product data including newly added products
+    const products = getAllProducts();
+    const foundProduct = products.find(p => p.id === Number(id));
+    setProduct(foundProduct);
+    setLoading(false);
+  }, [id]);
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-24 pb-16 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
   
   if (!product) {
     return (

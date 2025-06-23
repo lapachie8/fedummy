@@ -1,18 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { products } from '../data/products';
+import { getAllProducts } from '../data/products';
 import ProductGrid from '../components/ProductGrid';
 import CategoryFilter from '../components/CategoryFilter';
-import { Search } from 'lucide-react';
+import { Search, RefreshCw } from 'lucide-react';
 
 const ProductsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'All');
-  const [filteredProducts, setFilteredProducts] = useState(products);
+  const [filteredProducts, setFilteredProducts] = useState(getAllProducts());
+  const [loading, setLoading] = useState(false);
   
-  useEffect(() => {
-    // Apply filters
+  const refreshProducts = () => {
+    setLoading(true);
+    // Simulate loading delay
+    setTimeout(() => {
+      const products = getAllProducts();
+      applyFilters(products);
+      setLoading(false);
+    }, 500);
+  };
+  
+  const applyFilters = (products = getAllProducts()) => {
     let result = [...products];
     
     // Filter by category
@@ -32,7 +42,16 @@ const ProductsPage: React.FC = () => {
     }
     
     setFilteredProducts(result);
+  };
+  
+  useEffect(() => {
+    applyFilters();
   }, [selectedCategory, searchQuery]);
+  
+  // Refresh products when component mounts to show newly added products
+  useEffect(() => {
+    refreshProducts();
+  }, []);
   
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
@@ -61,7 +80,17 @@ const ProductsPage: React.FC = () => {
   return (
     <div className="min-h-screen pt-24 pb-16">
       <div className="container mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8">Our Rental Products</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Our Rental Products</h1>
+          <button
+            onClick={refreshProducts}
+            className="btn-outline flex items-center"
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
         
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Filters column */}
@@ -102,7 +131,12 @@ const ProductsPage: React.FC = () => {
           
           {/* Products column */}
           <div className="lg:w-3/4">
-            {filteredProducts.length > 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mr-3"></div>
+                <span>Loading products...</span>
+              </div>
+            ) : filteredProducts.length > 0 ? (
               <>
                 <div className="mb-6 flex justify-between items-center">
                   <p className="text-secondary-600">
@@ -133,6 +167,7 @@ const ProductsPage: React.FC = () => {
                     setSelectedCategory('All');
                     setSearchQuery('');
                     setSearchParams({});
+                    refreshProducts();
                   }}
                   className="btn-primary"
                 >

@@ -2,11 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
-import { ShoppingCart, User, Menu, X, Plus, FileText, Shield, LogOut, Settings, UserCircle } from 'lucide-react';
+import { useTransactions } from '../../contexts/TransactionContext';
+import { formatCurrency } from '../../utils/currency';
+import { ShoppingCart, User, Menu, X, Plus, FileText, Shield, LogOut, Settings, UserCircle, DollarSign } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { isAuthenticated, user, logout, isAdmin } = useAuth();
   const { cart } = useCart();
+  const { getTotalRevenue } = useTransactions();
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -56,6 +59,7 @@ const Header: React.FC = () => {
   }, [showLogoutConfirm]);
 
   const cartItemCount = cart.reduce((count, item) => count + item.quantity, 0);
+  const totalRevenue = getTotalRevenue();
 
   const handleLogoutClick = () => {
     setUserMenuOpen(false);
@@ -102,6 +106,16 @@ const Header: React.FC = () => {
                     <FileText className="w-4 h-4 mr-1" />
                     Transactions
                   </Link>
+                  {/* Revenue Display for Admin */}
+                  <div className="flex items-center bg-success-50 px-3 py-2 rounded-md border border-success-200">
+                    <DollarSign className="w-4 h-4 text-success-600 mr-2" />
+                    <div className="text-sm">
+                      <span className="text-success-600 font-medium">Revenue:</span>
+                      <span className="text-success-800 font-bold ml-1">
+                        {formatCurrency(totalRevenue)}
+                      </span>
+                    </div>
+                  </div>
                 </>
               )}
               <Link to="/about" className="text-secondary-800 hover:text-primary-600 transition-colors">
@@ -165,6 +179,15 @@ const Header: React.FC = () => {
                             <FileText className="w-4 h-4 mr-3" />
                             View Transactions
                           </Link>
+                          <div className="px-4 py-2 border-t border-secondary-200 mt-1">
+                            <div className="flex items-center text-sm">
+                              <DollarSign className="w-4 h-4 text-success-600 mr-2" />
+                              <span className="text-success-600">Total Revenue:</span>
+                            </div>
+                            <p className="text-lg font-bold text-success-800 mt-1">
+                              {formatCurrency(totalRevenue)}
+                            </p>
+                          </div>
                           <div className="border-t border-secondary-200 my-1"></div>
                         </>
                       ) : (
@@ -252,6 +275,15 @@ const Header: React.FC = () => {
                       <FileText className="w-4 h-4 mr-2" />
                       Transactions
                     </Link>
+                    <div className="bg-success-50 p-3 rounded-md border border-success-200">
+                      <div className="flex items-center mb-1">
+                        <DollarSign className="w-4 h-4 text-success-600 mr-2" />
+                        <span className="text-sm text-success-600 font-medium">Total Revenue:</span>
+                      </div>
+                      <p className="text-lg font-bold text-success-800">
+                        {formatCurrency(totalRevenue)}
+                      </p>
+                    </div>
                   </>
                 )}
                 <Link to="/about" className="text-secondary-800 hover:text-primary-600 transition-colors py-2">

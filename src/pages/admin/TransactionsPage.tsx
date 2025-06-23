@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTransactions } from '../../contexts/TransactionContext';
 import { Transaction } from '../../types';
 import { formatCurrency } from '../../utils/currency';
-import { ArrowLeft, Eye, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Eye, CheckCircle, XCircle, Clock, AlertCircle, DollarSign, TrendingUp } from 'lucide-react';
 
 const TransactionsPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { transactions, getTotalRevenue, getCompletedTransactions } = useTransactions();
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'active' | 'completed' | 'cancelled'>('all');
   
@@ -19,94 +20,21 @@ const TransactionsPage: React.FC = () => {
   }
   
   useEffect(() => {
-    // Mock data - in a real app, this would come from your backend
-    const mockTransactions: Transaction[] = [
-      {
-        id: 'TXN001',
-        customerName: 'John Doe',
-        customerEmail: 'john@example.com',
-        items: [
-          {
-            product: {
-              id: 1,
-              name: 'Feixiao Cosplay Set',
-              description: 'Complete cosplay set',
-              price: 150000,
-              priceUnit: 'item',
-              category: 'Honkai Star-Rail',
-              imageUrl: '/img/ayang.png',
-              available: true
-            },
-            quantity: 1,
-            rentalDays: 3
-          }
-        ],
-        total: 450000,
-        status: 'active',
-        createdAt: new Date('2024-01-15'),
-        dueDate: new Date('2024-01-18')
-      },
-      {
-        id: 'TXN002',
-        customerName: 'Jane Smith',
-        customerEmail: 'jane@example.com',
-        items: [
-          {
-            product: {
-              id: 2,
-              name: 'Kafka Cosplay Outfit',
-              description: 'Premium cosplay outfit',
-              price: 200000,
-              priceUnit: 'item',
-              category: 'Honkai Star-Rail',
-              imageUrl: '/img/kafka.png',
-              available: true
-            },
-            quantity: 1,
-            rentalDays: 7
-          }
-        ],
-        total: 1400000,
-        status: 'pending',
-        createdAt: new Date('2024-01-16'),
-        dueDate: new Date('2024-01-23')
-      },
-      {
-        id: 'TXN003',
-        customerName: 'Mike Johnson',
-        customerEmail: 'mike@example.com',
-        items: [
-          {
-            product: {
-              id: 3,
-              name: 'Frieren Magic Staff',
-              description: 'Detailed magic staff',
-              price: 125000,
-              priceUnit: 'item',
-              category: 'Anime',
-              imageUrl: '/img/frieren.png',
-              available: true
-            },
-            quantity: 2,
-            rentalDays: 5
-          }
-        ],
-        total: 1250000,
-        status: 'completed',
-        createdAt: new Date('2024-01-10'),
-        dueDate: new Date('2024-01-15')
-      }
-    ];
-    
+    // Simulate loading delay
     setTimeout(() => {
-      setTransactions(mockTransactions);
       setLoading(false);
-    }, 1000);
+    }, 500);
   }, []);
   
   const filteredTransactions = transactions.filter(transaction => 
     filter === 'all' || transaction.status === filter
   );
+  
+  const totalRevenue = getTotalRevenue();
+  const completedTransactions = getCompletedTransactions();
+  const averageOrderValue = completedTransactions.length > 0 
+    ? totalRevenue / completedTransactions.length 
+    : 0;
   
   const getStatusIcon = (status: Transaction['status']) => {
     switch (status) {
@@ -163,6 +91,57 @@ const TransactionsPage: React.FC = () => {
           <h1 className="text-3xl font-bold">Customer Transactions</h1>
         </div>
         
+        {/* Revenue Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-gradient-to-r from-success-500 to-success-600 rounded-lg shadow-md p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-success-100 text-sm font-medium">Total Revenue</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
+              </div>
+              <div className="bg-success-400 bg-opacity-30 rounded-full p-3">
+                <DollarSign className="h-6 w-6" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg shadow-md p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-primary-100 text-sm font-medium">Completed Orders</p>
+                <p className="text-2xl font-bold">{completedTransactions.length}</p>
+              </div>
+              <div className="bg-primary-400 bg-opacity-30 rounded-full p-3">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-accent-500 to-accent-600 rounded-lg shadow-md p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-accent-100 text-sm font-medium">Average Order</p>
+                <p className="text-2xl font-bold">{formatCurrency(averageOrderValue)}</p>
+              </div>
+              <div className="bg-accent-400 bg-opacity-30 rounded-full p-3">
+                <TrendingUp className="h-6 w-6" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg shadow-md p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-secondary-100 text-sm font-medium">Total Transactions</p>
+                <p className="text-2xl font-bold">{transactions.length}</p>
+              </div>
+              <div className="bg-secondary-400 bg-opacity-30 rounded-full p-3">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+            </div>
+          </div>
+        </div>
+        
         {/* Filter Tabs */}
         <div className="mb-6">
           <div className="flex flex-wrap gap-2">
@@ -209,6 +188,9 @@ const TransactionsPage: React.FC = () => {
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
                       Due Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
@@ -251,6 +233,9 @@ const TransactionsPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900">
+                        {transaction.createdAt.toLocaleDateString('id-ID')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900">
                         {transaction.dueDate.toLocaleDateString('id-ID')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -266,7 +251,7 @@ const TransactionsPage: React.FC = () => {
           )}
         </div>
         
-        {/* Summary Cards */}
+        {/* Status Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center">

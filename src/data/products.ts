@@ -1,6 +1,51 @@
 import { Product } from '../types';
 
-export const products: Product[] = [
+// Helper function to get products from localStorage
+const getStoredProducts = (): Product[] => {
+  try {
+    const stored = localStorage.getItem('customProducts');
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Error loading products from localStorage:', error);
+    return [];
+  }
+};
+
+// Helper function to save products to localStorage
+export const saveProductToStorage = (product: Omit<Product, 'id'>): Product => {
+  try {
+    const existingProducts = getStoredProducts();
+    const newId = Math.max(0, ...defaultProducts.map(p => p.id), ...existingProducts.map(p => p.id)) + 1;
+    
+    const newProduct: Product = {
+      ...product,
+      id: newId
+    };
+    
+    const updatedProducts = [...existingProducts, newProduct];
+    localStorage.setItem('customProducts', JSON.stringify(updatedProducts));
+    
+    return newProduct;
+  } catch (error) {
+    console.error('Error saving product to localStorage:', error);
+    throw new Error('Failed to save product');
+  }
+};
+
+// Helper function to delete product from localStorage
+export const deleteProductFromStorage = (productId: number): void => {
+  try {
+    const existingProducts = getStoredProducts();
+    const updatedProducts = existingProducts.filter(p => p.id !== productId);
+    localStorage.setItem('customProducts', JSON.stringify(updatedProducts));
+  } catch (error) {
+    console.error('Error deleting product from localStorage:', error);
+    throw new Error('Failed to delete product');
+  }
+};
+
+// Default products with corrected image paths
+export const defaultProducts: Product[] = [
   {
     id: 1,
     name: 'Feixiao Cosplay Set',
@@ -80,8 +125,57 @@ export const products: Product[] = [
     category: 'Anime',
     imageUrl: 'https://images.pexels.com/photos/3784221/pexels-photo-3784221.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
     available: true
+  },
+  {
+    id: 9,
+    name: 'Samurai Katana Replica',
+    description: 'Replika katana samurai berkualitas tinggi untuk cosplay dan koleksi.',
+    price: 250000,
+    priceUnit: 'item',
+    category: 'Anime',
+    imageUrl: '/img/katana.png',
+    available: true
+  },
+  {
+    id: 10,
+    name: 'Fantasy Bow Set',
+    description: 'Set busur fantasi lengkap dengan anak panah untuk cosplay archer.',
+    price: 175000,
+    priceUnit: 'item',
+    category: 'Anime',
+    imageUrl: '/img/bow1.png',
+    available: true
+  },
+  {
+    id: 11,
+    name: 'Medieval Sword Replica',
+    description: 'Replika pedang medieval yang detail untuk cosplay knight atau warrior.',
+    price: 220000,
+    priceUnit: 'item',
+    category: 'Anime',
+    imageUrl: '/img/sword.png',
+    available: true
+  },
+  {
+    id: 12,
+    name: 'Elven Bow Deluxe',
+    description: 'Busur elven mewah dengan ukiran detail untuk cosplay fantasy.',
+    price: 195000,
+    priceUnit: 'item',
+    category: 'Anime',
+    imageUrl: '/img/bow2.png',
+    available: true
   }
 ];
+
+// Combined products function
+export const getAllProducts = (): Product[] => {
+  const storedProducts = getStoredProducts();
+  return [...defaultProducts, ...storedProducts];
+};
+
+// Export for backward compatibility
+export const products = getAllProducts();
 
 export const categories = [
   'All',

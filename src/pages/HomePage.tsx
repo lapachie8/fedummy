@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Search } from 'lucide-react';
-import { products, categories } from '../data/products';
+import { getAllProducts, categories } from '../data/products';
 import ProductGrid from '../components/ProductGrid';
 
 const HomePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [featuredProducts, setFeaturedProducts] = useState([]);
   
-  const featuredProducts = products.slice(0, 4);
+  useEffect(() => {
+    // Get fresh products including newly added ones
+    const products = getAllProducts();
+    setFeaturedProducts(products.slice(0, 4));
+  }, []);
   
   return (
     <div className="min-h-screen">
@@ -89,6 +94,10 @@ const HomePage: React.FC = () => {
                       src="/img/katana.png" 
                       alt="Gaming Equipment" 
                       className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://images.pexels.com/photos/2582818/pexels-photo-2582818.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
+                      }}
                     />
                   </div>
                 </div>
