@@ -35,75 +35,7 @@ const PaymentPage: React.FC = () => {
               <h2 className="text-2xl font-bold mb-6">Payment Method</h2>
               
               <div className="space-y-4">
-                <label className="block p-4 border rounded-md transition-all cursor-pointer hover:border-primary-600 hover:bg-primary-50">
-                  <div className="flex items-center">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="credit-card"
-                      checked={paymentMethod === 'credit-card'}
-                      onChange={() => setPaymentMethodState('credit-card')}
-                      className="form-radio text-primary-600 mr-3"
-                    />
-                    <CreditCard className="w-6 h-6 text-secondary-700 mr-3" />
-                    <div>
-                      <span className="font-medium">Credit / Debit Card</span>
-                      <p className="text-sm text-secondary-600 mt-1">
-                        Pay securely with your credit or debit card.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {paymentMethod === 'credit-card' && (
-                    <div className="mt-4 pl-10">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <label className="block text-sm font-medium text-secondary-700 mb-1">
-                            Card Number
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="1234 5678 9012 3456"
-                            className="input"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-secondary-700 mb-1">
-                            Cardholder Name
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="John Doe"
-                            className="input"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-secondary-700 mb-1">
-                            Expiration Date
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="MM/YY"
-                            className="input"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-secondary-700 mb-1">
-                            CVV
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="123"
-                            className="input"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </label>
+                
                 
                 <label className="block p-4 border rounded-md transition-all cursor-pointer hover:border-primary-600 hover:bg-primary-50">
                   <div className="flex items-center">

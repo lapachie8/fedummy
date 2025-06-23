@@ -86,7 +86,7 @@ const HomePage: React.FC = () => {
                   </div>
                   <div className="rounded-lg overflow-hidden shadow-lg transform translate-y-4">
                     <img 
-                      src="https://images.pexels.com/photos/2582818/pexels-photo-2582818.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" 
+                      src="/img/katana.png" 
                       alt="Gaming Equipment" 
                       className="w-full h-48 object-cover"
                     />
