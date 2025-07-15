@@ -921,6 +921,251 @@ app.get('/api/statistics', authenticateToken, requireAdmin, async (req, res) => 
   }
 });
 
+// Cart Management Endpoints
+
+// Get user's cart
+app.get('/api/cart', authenticateToken, async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT 
+        c.id,
+        c.product_id,
+        c.quantity,
+        c.rental_days,
+        c.created_at,
+        p.name,
+        p.description,
+        p.price,
+        p.price_unit,
+        p.category,
+        p.image_url,
+        p.available,
+        (p.price * c.quantity * c.rental_days) as subtotal
+      FROM cart_items c
+      JOIN products p ON c.product_id = p.id
+      WHERE c.user_id = $1
+      ORDER BY c.created_at DESC
+    `, [req.user.id]);
+    
+    const cartItems = result.rows;
+    const total = cartItems.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
+    
+    res.json({
+      success: true,
+      data: {
+        items: cartItems,
+        total: total,
+        itemCount: cartItems.reduce((sum, item) => sum + item.quantity, 0)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Add product to cart
+app.post('/api/cart', authenticateToken, async (req, res) => {
+  try {
+    const { productId, quantity = 1, rentalDays = 1 } = req.body;
+    
+    if (!productId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Product ID is required'
+      });
+    }
+    
+    if (quantity < 1 || rentalDays < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quantity and rental days must be at least 1'
+      });
+    }
+    
+    // Check if product exists and is available
+    const productResult = await query(
+      'SELECT * FROM products WHERE id = $1',
+      [productId]
+    );
+    
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    const product = productResult.rows[0];
+    
+    if (!product.available || product.stock < quantity) {
+      return res.status(400).json({
+        success: false,
+        message: 'Product is not available or insufficient stock'
+      });
+    }
+    
+    // Check if item already exists in cart
+    const existingItem = await query(
+      'SELECT * FROM cart_items WHERE user_id = $1 AND product_id = $2',
+      [req.user.id, productId]
+    );
+    
+    let result;
+    
+    if (existingItem.rows.length > 0) {
+      // Update existing item
+      result = await query(
+        'UPDATE cart_items SET quantity = quantity + $1, rental_days = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $3 AND product_id = $4 RETURNING *',
+        [quantity, rentalDays, req.user.id, productId]
+      );
+    } else {
+      // Add new item
+      result = await query(
+        'INSERT INTO cart_items (user_id, product_id, quantity, rental_days) VALUES ($1, $2, $3, $4) RETURNING *',
+        [req.user.id, productId, quantity, rentalDays]
+      );
+    }
+    
+    // Get updated cart item with product details
+    const cartItemResult = await query(`
+      SELECT 
+        c.id,
+        c.product_id,
+        c.quantity,
+        c.rental_days,
+        c.created_at,
+        p.name,
+        p.description,
+        p.price,
+        p.price_unit,
+        p.category,
+        p.image_url,
+        p.available,
+        (p.price * c.quantity * c.rental_days) as subtotal
+      FROM cart_items c
+      JOIN products p ON c.product_id = p.id
+      WHERE c.id = $1
+    `, [result.rows[0].id]);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Product added to cart successfully',
+      data: cartItemResult.rows[0]
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update cart item
+app.put('/api/cart/:id', authenticateToken, async (req, res) => {
+  try {
+    const { quantity, rentalDays } = req.body;
+    const cartItemId = req.params.id;
+    
+    if (quantity && quantity < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quantity must be at least 1'
+      });
+    }
+    
+    if (rentalDays && rentalDays < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rental days must be at least 1'
+      });
+    }
+    
+    // Check if cart item belongs to user
+    const cartItemCheck = await query(
+      'SELECT * FROM cart_items WHERE id = $1 AND user_id = $2',
+      [cartItemId, req.user.id]
+    );
+    
+    if (cartItemCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cart item not found'
+      });
+    }
+    
+    // Update cart item
+    const result = await query(
+      'UPDATE cart_items SET quantity = COALESCE($1, quantity), rental_days = COALESCE($2, rental_days), updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND user_id = $4 RETURNING *',
+      [quantity, rentalDays, cartItemId, req.user.id]
+    );
+    
+    // Get updated cart item with product details
+    const cartItemResult = await query(`
+      SELECT 
+        c.id,
+        c.product_id,
+        c.quantity,
+        c.rental_days,
+        c.created_at,
+        p.name,
+        p.description,
+        p.price,
+        p.price_unit,
+        p.category,
+        p.image_url,
+        p.available,
+        (p.price * c.quantity * c.rental_days) as subtotal
+      FROM cart_items c
+      JOIN products p ON c.product_id = p.id
+      WHERE c.id = $1
+    `, [cartItemId]);
+    
+    res.json({
+      success: true,
+      message: 'Cart item updated successfully',
+      data: cartItemResult.rows[0]
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Remove item from cart
+app.delete('/api/cart/:id', authenticateToken, async (req, res) => {
+  try {
+    const cartItemId = req.params.id;
+    
+    const result = await query(
+      'DELETE FROM cart_items WHERE id = $1 AND user_id = $2 RETURNING id',
+      [cartItemId, req.user.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cart item not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Item removed from cart successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Clear entire cart
+app.delete('/api/cart', authenticateToken, async (req, res) => {
+  try {
+    await query('DELETE FROM cart_items WHERE user_id = $1', [req.user.id]);
+    
+    res.json({
+      success: true,
+      message: 'Cart cleared successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 // Error handling
 app.use(errorHandler);
 
