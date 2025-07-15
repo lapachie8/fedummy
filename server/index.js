@@ -3,6 +3,8 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const { query, transaction } = require('./database/connection');
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -12,64 +14,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// In-memory storage (replace with database in production)
-let users = [
-  {
-    id: 'admin',
-    email: 'admin@juiweaprent.com',
-    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password: admin123
-    name: 'Administrator',
-    role: 'admin',
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-];
-
-let products = [
-  {
-    id: 1,
-    name: 'Feixiao Cosplay Set',
-    description: 'Aksesoris lengkap untuk bermain Honkai Star-Rail, termasuk controller, headset, dan mouse pad khusus.',
-    price: 150000,
-    priceUnit: 'item',
-    category: 'Honkai Star-Rail',
-    imageUrl: '/img/ayang.png',
-    available: true,
-    stock: 5,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: 2,
-    name: 'Kafka Cosplay Outfit',
-    description: 'Kostum Kafka lengkap dengan aksesoris untuk cosplay Honkai Star-Rail yang sempurna.',
-    price: 200000,
-    priceUnit: 'item',
-    category: 'Honkai Star-Rail',
-    imageUrl: '/img/kafka.png',
-    available: true,
-    stock: 3,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: 3,
-    name: 'Frieren Magic Staff',
-    description: 'Tongkat sihir Frieren yang detail dan berkualitas tinggi untuk cosplay anime.',
-    price: 125000,
-    priceUnit: 'item',
-    category: 'Anime',
-    imageUrl: '/img/frieren.png',
-    available: true,
-    stock: 2,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-];
-
-let transactions = [];
-let orders = [];
 
 // Utility functions
 const generateId = () => uuidv4();
@@ -164,13 +108,26 @@ const errorHandler = (err, req, res, next) => {
 // Routes
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'API is running',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connection
+    await query('SELECT 1');
+    res.json({
+      success: true,
+      message: 'API is running',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      database: 'Connected'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'API is running but database connection failed',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      database: 'Disconnected'
+    });
+  }
 });
 
 // Authentication endpoints
@@ -179,8 +136,8 @@ app.post('/api/auth/register', validateUser, async (req, res) => {
     const { email, password, name } = req.body;
     
     // Check if user already exists
-    const existingUser = users.find(user => user.email === email);
-    if (existingUser) {
+    const existingUser = await query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existingUser.rows.length > 0) {
       return res.status(409).json({
         success: false,
         message: 'User with this email already exists'
@@ -191,17 +148,12 @@ app.post('/api/auth/register', validateUser, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Create new user
-    const newUser = {
-      id: generateId(),
-      email,
-      password: hashedPassword,
-      name,
-      role: 'user',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    const result = await query(
+      'INSERT INTO users (email, password, name, role) VALUES ($1, $2, $3, $4) RETURNING id, email, name, role, created_at, updated_at',
+      [email, hashedPassword, name, 'user']
+    );
     
-    users.push(newUser);
+    const newUser = result.rows[0];
     
     // Generate token
     const token = jwt.sign(
@@ -210,14 +162,11 @@ app.post('/api/auth/register', validateUser, async (req, res) => {
       { expiresIn: '24h' }
     );
     
-    // Remove password from response
-    const { password: _, ...userResponse } = newUser;
-    
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
       data: {
-        user: userResponse,
+        user: newUser,
         token
       }
     });
@@ -231,13 +180,19 @@ app.post('/api/auth/login', validateUser, async (req, res) => {
     const { email, password } = req.body;
     
     // Find user
-    const user = users.find(u => u.email === email || u.email === `${email}@juiweaprent.com`);
-    if (!user) {
+    const result = await query(
+      'SELECT * FROM users WHERE email = $1 OR email = $2',
+      [email, `${email}@juiweaprent.com`]
+    );
+    
+    if (result.rows.length === 0) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
+    
+    const user = result.rows[0];
     
     // Check password
     const isValidPassword = await bcrypt.compare(password, user.password);
@@ -279,481 +234,615 @@ app.post('/api/auth/logout', authenticateToken, (req, res) => {
 });
 
 // User endpoints
-app.get('/api/users/profile', authenticateToken, (req, res) => {
-  const user = users.find(u => u.id === req.user.id);
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found'
-    });
-  }
-  
-  const { password: _, ...userResponse } = user;
-  res.json({
-    success: true,
-    data: userResponse
-  });
-});
-
-app.put('/api/users/profile', authenticateToken, (req, res) => {
-  const { name, email } = req.body;
-  const userIndex = users.findIndex(u => u.id === req.user.id);
-  
-  if (userIndex === -1) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found'
-    });
-  }
-  
-  // Check if email is already taken by another user
-  if (email && email !== users[userIndex].email) {
-    const emailExists = users.find(u => u.email === email && u.id !== req.user.id);
-    if (emailExists) {
-      return res.status(409).json({
+app.get('/api/users/profile', authenticateToken, async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT id, email, name, role, created_at, updated_at FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
         success: false,
-        message: 'Email already in use'
+        message: 'User not found'
       });
     }
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    next(error);
   }
-  
-  // Update user
-  users[userIndex] = {
-    ...users[userIndex],
-    name: name || users[userIndex].name,
-    email: email || users[userIndex].email,
-    updatedAt: new Date()
-  };
-  
-  const { password: _, ...userResponse } = users[userIndex];
-  res.json({
-    success: true,
-    message: 'Profile updated successfully',
-    data: userResponse
-  });
+});
+
+app.put('/api/users/profile', authenticateToken, async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    
+    // Check if email is already taken by another user
+    if (email) {
+      const emailCheck = await query(
+        'SELECT id FROM users WHERE email = $1 AND id != $2',
+        [email, req.user.id]
+      );
+      
+      if (emailCheck.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'Email already in use'
+        });
+      }
+    }
+    
+    // Update user
+    const result = await query(
+      'UPDATE users SET name = COALESCE($1, name), email = COALESCE($2, email), updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING id, email, name, role, created_at, updated_at',
+      [name, email, req.user.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Product endpoints
-app.get('/api/products', (req, res) => {
-  const { page = 1, limit = 10, category, search, available } = req.query;
-  let filteredProducts = [...products];
-  
-  // Filter by category
-  if (category && category !== 'All') {
-    filteredProducts = filteredProducts.filter(p => p.category === category);
-  }
-  
-  // Filter by search query
-  if (search) {
-    const searchLower = search.toLowerCase();
-    filteredProducts = filteredProducts.filter(p => 
-      p.name.toLowerCase().includes(searchLower) ||
-      p.description.toLowerCase().includes(searchLower) ||
-      p.category.toLowerCase().includes(searchLower)
-    );
-  }
-  
-  // Filter by availability
-  if (available !== undefined) {
-    filteredProducts = filteredProducts.filter(p => p.available === (available === 'true'));
-  }
-  
-  // Pagination
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + parseInt(limit);
-  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
-  
-  res.json({
-    success: true,
-    data: {
-      products: paginatedProducts,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(filteredProducts.length / limit),
-        totalItems: filteredProducts.length,
-        itemsPerPage: parseInt(limit)
-      }
+app.get('/api/products', async (req, res) => {
+  try {
+    const { page = 1, limit = 10, category, search, available } = req.query;
+    const offset = (page - 1) * limit;
+    
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+    
+    // Filter by category
+    if (category && category !== 'All') {
+      whereConditions.push(`category = $${paramIndex}`);
+      queryParams.push(category);
+      paramIndex++;
     }
-  });
-});
-
-app.get('/api/products/:id', (req, res) => {
-  const product = products.find(p => p.id === parseInt(req.params.id));
-  if (!product) {
-    return res.status(404).json({
-      success: false,
-      message: 'Product not found'
+    
+    // Filter by search query
+    if (search) {
+      whereConditions.push(`(name ILIKE $${paramIndex} OR description ILIKE $${paramIndex} OR category ILIKE $${paramIndex})`);
+      queryParams.push(`%${search}%`);
+      paramIndex++;
+    }
+    
+    // Filter by availability
+    if (available !== undefined) {
+      whereConditions.push(`available = $${paramIndex}`);
+      queryParams.push(available === 'true');
+      paramIndex++;
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // Get total count
+    const countResult = await query(
+      `SELECT COUNT(*) FROM products ${whereClause}`,
+      queryParams
+    );
+    const totalItems = parseInt(countResult.rows[0].count);
+    
+    // Get products with pagination
+    const productsResult = await query(
+      `SELECT * FROM products ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...queryParams, limit, offset]
+    );
+    
+    res.json({
+      success: true,
+      data: {
+        products: productsResult.rows,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(totalItems / limit),
+          totalItems,
+          itemsPerPage: parseInt(limit)
+        }
+      }
     });
+  } catch (error) {
+    next(error);
   }
-  
-  res.json({
-    success: true,
-    data: product
-  });
 });
 
-app.post('/api/products', authenticateToken, requireAdmin, validateProduct, (req, res) => {
-  const { name, description, price, priceUnit = 'item', category, imageUrl, available = true, stock = 1 } = req.body;
-  
-  const newProduct = {
-    id: generateNumericId(),
-    name,
-    description,
-    price: parseFloat(price),
-    priceUnit,
-    category,
-    imageUrl: imageUrl || 'https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
-    available,
-    stock: parseInt(stock),
-    createdAt: new Date(),
-    updatedAt: new Date()
-  };
-  
-  products.push(newProduct);
-  
-  res.status(201).json({
-    success: true,
-    message: 'Product created successfully',
-    data: newProduct
-  });
-});
-
-app.put('/api/products/:id', authenticateToken, requireAdmin, validateProduct, (req, res) => {
-  const productIndex = products.findIndex(p => p.id === parseInt(req.params.id));
-  if (productIndex === -1) {
-    return res.status(404).json({
-      success: false,
-      message: 'Product not found'
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM products WHERE id = $1', [req.params.id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
     });
+  } catch (error) {
+    next(error);
   }
-  
-  const { name, description, price, priceUnit, category, imageUrl, available, stock } = req.body;
-  
-  products[productIndex] = {
-    ...products[productIndex],
-    name: name || products[productIndex].name,
-    description: description || products[productIndex].description,
-    price: price ? parseFloat(price) : products[productIndex].price,
-    priceUnit: priceUnit || products[productIndex].priceUnit,
-    category: category || products[productIndex].category,
-    imageUrl: imageUrl || products[productIndex].imageUrl,
-    available: available !== undefined ? available : products[productIndex].available,
-    stock: stock ? parseInt(stock) : products[productIndex].stock,
-    updatedAt: new Date()
-  };
-  
-  res.json({
-    success: true,
-    message: 'Product updated successfully',
-    data: products[productIndex]
-  });
 });
 
-app.delete('/api/products/:id', authenticateToken, requireAdmin, (req, res) => {
-  const productIndex = products.findIndex(p => p.id === parseInt(req.params.id));
-  if (productIndex === -1) {
-    return res.status(404).json({
-      success: false,
-      message: 'Product not found'
+app.post('/api/products', authenticateToken, requireAdmin, validateProduct, async (req, res) => {
+  try {
+    const { name, description, price, price_unit = 'item', category, image_url, available = true, stock = 1 } = req.body;
+    
+    const result = await query(
+      'INSERT INTO products (name, description, price, price_unit, category, image_url, available, stock) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [name, description, parseFloat(price), price_unit, category, image_url || 'https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1', available, parseInt(stock)]
+    );
+    
+    res.status(201).json({
+      success: true,
+      message: 'Product created successfully',
+      data: result.rows[0]
     });
+  } catch (error) {
+    next(error);
   }
-  
-  products.splice(productIndex, 1);
-  
-  res.json({
-    success: true,
-    message: 'Product deleted successfully'
-  });
+});
+
+app.put('/api/products/:id', authenticateToken, requireAdmin, validateProduct, async (req, res) => {
+  try {
+    const { name, description, price, price_unit, category, image_url, available, stock } = req.body;
+    
+    const result = await query(
+      'UPDATE products SET name = COALESCE($1, name), description = COALESCE($2, description), price = COALESCE($3, price), price_unit = COALESCE($4, price_unit), category = COALESCE($5, category), image_url = COALESCE($6, image_url), available = COALESCE($7, available), stock = COALESCE($8, stock), updated_at = CURRENT_TIMESTAMP WHERE id = $9 RETURNING *',
+      [name, description, price ? parseFloat(price) : null, price_unit, category, image_url, available, stock ? parseInt(stock) : null, req.params.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Product updated successfully',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/products/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await query('DELETE FROM products WHERE id = $1 RETURNING id', [req.params.id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Order endpoints
-app.post('/api/orders', authenticateToken, (req, res) => {
-  const { items, personalInfo, paymentMethod, shippingMethod } = req.body;
-  
-  if (!items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({
-      success: false,
-      message: 'Order items are required'
-    });
-  }
-  
-  if (!personalInfo || !paymentMethod || !shippingMethod) {
-    return res.status(400).json({
-      success: false,
-      message: 'Personal info, payment method, and shipping method are required'
-    });
-  }
-  
-  // Calculate total
-  let total = 0;
-  const orderItems = [];
-  
-  for (const item of items) {
-    const product = products.find(p => p.id === item.productId);
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: `Product with ID ${item.productId} not found`
-      });
-    }
+app.post('/api/orders', authenticateToken, async (req, res) => {
+  try {
+    const { items, personalInfo, paymentMethod, shippingMethod } = req.body;
     
-    if (!product.available || product.stock < item.quantity) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
-        message: `Product ${product.name} is not available or insufficient stock`
+        message: 'Order items are required'
       });
     }
     
-    const itemTotal = product.price * item.quantity * item.rentalDays;
-    total += itemTotal;
+    if (!personalInfo || !paymentMethod || !shippingMethod) {
+      return res.status(400).json({
+        success: false,
+        message: 'Personal info, payment method, and shipping method are required'
+      });
+    }
     
-    orderItems.push({
-      product,
-      quantity: item.quantity,
-      rentalDays: item.rentalDays,
-      price: product.price,
-      subtotal: itemTotal
-    });
-  }
-  
-  const newOrder = {
-    id: generateId(),
-    userId: req.user.id,
-    items: orderItems,
-    personalInfo,
-    paymentMethod,
-    shippingMethod,
-    total,
-    status: 'pending',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    dueDate: new Date(Date.now() + (Math.max(...items.map(i => i.rentalDays)) * 24 * 60 * 60 * 1000))
-  };
-  
-  orders.push(newOrder);
-  
-  // Update product stock
-  for (const item of items) {
-    const productIndex = products.findIndex(p => p.id === item.productId);
-    if (productIndex !== -1) {
-      products[productIndex].stock -= item.quantity;
-      if (products[productIndex].stock <= 0) {
-        products[productIndex].available = false;
+    const result = await transaction(async (client) => {
+      // Calculate total and validate products
+      let total = 0;
+      const orderItems = [];
+      
+      for (const item of items) {
+        const productResult = await client.query('SELECT * FROM products WHERE id = $1', [item.productId]);
+        
+        if (productResult.rows.length === 0) {
+          throw new Error(`Product with ID ${item.productId} not found`);
+        }
+        
+        const product = productResult.rows[0];
+        
+        if (!product.available || product.stock < item.quantity) {
+          throw new Error(`Product ${product.name} is not available or insufficient stock`);
+        }
+        
+        const itemTotal = product.price * item.quantity * item.rentalDays;
+        total += itemTotal;
+        
+        orderItems.push({
+          product,
+          quantity: item.quantity,
+          rental_days: item.rentalDays,
+          price: product.price,
+          subtotal: itemTotal
+        });
       }
-    }
+      
+      // Create order
+      const orderResult = await client.query(
+        'INSERT INTO orders (user_id, personal_info, payment_method, shipping_method, total, due_date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [
+          req.user.id,
+          JSON.stringify(personalInfo),
+          paymentMethod,
+          shippingMethod,
+          total,
+          new Date(Date.now() + (Math.max(...items.map(i => i.rentalDays)) * 24 * 60 * 60 * 1000))
+        ]
+      );
+      
+      const newOrder = orderResult.rows[0];
+      
+      // Create order items
+      for (let i = 0; i < orderItems.length; i++) {
+        const orderItem = orderItems[i];
+        const item = items[i];
+        
+        await client.query(
+          'INSERT INTO order_items (order_id, product_id, quantity, rental_days, price, subtotal) VALUES ($1, $2, $3, $4, $5, $6)',
+          [newOrder.id, item.productId, item.quantity, item.rentalDays, orderItem.price, orderItem.subtotal]
+        );
+        
+        // Update product stock
+        await client.query(
+          'UPDATE products SET stock = stock - $1, available = CASE WHEN stock - $1 <= 0 THEN false ELSE available END WHERE id = $2',
+          [item.quantity, item.productId]
+        );
+      }
+      
+      // Create transaction record
+      const transactionId = `TXN${Date.now()}`;
+      const transactionResult = await client.query(
+        'INSERT INTO transactions (id, order_id, customer_name, customer_email, total, due_date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [transactionId, newOrder.id, personalInfo.fullName, personalInfo.email, total, newOrder.due_date]
+      );
+      
+      return {
+        order: { ...newOrder, items: orderItems },
+        transaction: transactionResult.rows[0]
+      };
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'Order created successfully',
+      data: result
+    });
+  } catch (error) {
+    next(error);
   }
-  
-  // Create transaction record
-  const transaction = {
-    id: `TXN${Date.now()}`,
-    orderId: newOrder.id,
-    customerName: personalInfo.fullName,
-    customerEmail: personalInfo.email,
-    items: orderItems,
-    total,
-    status: 'pending',
-    createdAt: new Date(),
-    dueDate: newOrder.dueDate
-  };
-  
-  transactions.push(transaction);
-  
-  res.status(201).json({
-    success: true,
-    message: 'Order created successfully',
-    data: {
-      order: newOrder,
-      transaction
-    }
-  });
 });
 
-app.get('/api/orders', authenticateToken, (req, res) => {
-  const { page = 1, limit = 10, status } = req.query;
-  let userOrders = orders.filter(order => order.userId === req.user.id);
-  
-  // Filter by status
-  if (status) {
-    userOrders = userOrders.filter(order => order.status === status);
-  }
-  
-  // Sort by creation date (newest first)
-  userOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  
-  // Pagination
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + parseInt(limit);
-  const paginatedOrders = userOrders.slice(startIndex, endIndex);
-  
-  res.json({
-    success: true,
-    data: {
-      orders: paginatedOrders,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(userOrders.length / limit),
-        totalItems: userOrders.length,
-        itemsPerPage: parseInt(limit)
-      }
+app.get('/api/orders', authenticateToken, async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status } = req.query;
+    const offset = (page - 1) * limit;
+    
+    let whereConditions = ['user_id = $1'];
+    let queryParams = [req.user.id];
+    let paramIndex = 2;
+    
+    // Filter by status
+    if (status) {
+      whereConditions.push(`status = $${paramIndex}`);
+      queryParams.push(status);
+      paramIndex++;
     }
-  });
+    
+    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+    
+    // Get total count
+    const countResult = await query(
+      `SELECT COUNT(*) FROM orders ${whereClause}`,
+      queryParams
+    );
+    const totalItems = parseInt(countResult.rows[0].count);
+    
+    // Get orders with pagination
+    const ordersResult = await query(
+      `SELECT * FROM orders ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...queryParams, limit, offset]
+    );
+    
+    res.json({
+      success: true,
+      data: {
+        orders: ordersResult.rows,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(totalItems / limit),
+          totalItems,
+          itemsPerPage: parseInt(limit)
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
-app.get('/api/orders/:id', authenticateToken, (req, res) => {
-  const order = orders.find(o => o.id === req.params.id);
-  if (!order) {
-    return res.status(404).json({
-      success: false,
-      message: 'Order not found'
+app.get('/api/orders/:id', authenticateToken, async (req, res) => {
+  try {
+    const orderResult = await query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    const order = orderResult.rows[0];
+    
+    // Check if user owns the order or is admin
+    if (order.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+    
+    // Get order items
+    const itemsResult = await query(
+      'SELECT oi.*, p.name, p.description, p.image_url FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = $1',
+      [req.params.id]
+    );
+    
+    res.json({
+      success: true,
+      data: {
+        ...order,
+        items: itemsResult.rows
+      }
     });
+  } catch (error) {
+    next(error);
   }
-  
-  // Check if user owns the order or is admin
-  if (order.userId !== req.user.id && req.user.role !== 'admin') {
-    return res.status(403).json({
-      success: false,
-      message: 'Access denied'
-    });
-  }
-  
-  res.json({
-    success: true,
-    data: order
-  });
 });
 
 // Transaction endpoints (Admin only)
-app.get('/api/transactions', authenticateToken, requireAdmin, (req, res) => {
-  const { page = 1, limit = 10, status } = req.query;
-  let filteredTransactions = [...transactions];
-  
-  // Filter by status
-  if (status) {
-    filteredTransactions = filteredTransactions.filter(t => t.status === status);
-  }
-  
-  // Sort by creation date (newest first)
-  filteredTransactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  
-  // Pagination
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + parseInt(limit);
-  const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
-  
-  // Calculate revenue
-  const totalRevenue = transactions
-    .filter(t => t.status === 'completed')
-    .reduce((sum, t) => sum + t.total, 0);
-  
-  res.json({
-    success: true,
-    data: {
-      transactions: paginatedTransactions,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(filteredTransactions.length / limit),
-        totalItems: filteredTransactions.length,
-        itemsPerPage: parseInt(limit)
-      },
-      summary: {
-        totalRevenue,
-        totalTransactions: transactions.length,
-        completedTransactions: transactions.filter(t => t.status === 'completed').length,
-        pendingTransactions: transactions.filter(t => t.status === 'pending').length,
-        activeTransactions: transactions.filter(t => t.status === 'active').length
-      }
+app.get('/api/transactions', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status } = req.query;
+    const offset = (page - 1) * limit;
+    
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+    
+    // Filter by status
+    if (status) {
+      whereConditions.push(`status = $${paramIndex}`);
+      queryParams.push(status);
+      paramIndex++;
     }
-  });
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // Get total count
+    const countResult = await query(
+      `SELECT COUNT(*) FROM transactions ${whereClause}`,
+      queryParams
+    );
+    const totalItems = parseInt(countResult.rows[0].count);
+    
+    // Get transactions with pagination
+    const transactionsResult = await query(
+      `SELECT * FROM transactions ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...queryParams, limit, offset]
+    );
+    
+    // Calculate revenue
+    const revenueResult = await query(
+      "SELECT COALESCE(SUM(total), 0) as total_revenue FROM transactions WHERE status = 'completed'"
+    );
+    const totalRevenue = parseFloat(revenueResult.rows[0].total_revenue);
+    
+    // Get transaction counts by status
+    const statusCounts = await query(
+      "SELECT status, COUNT(*) as count FROM transactions GROUP BY status"
+    );
+    
+    const summary = {
+      totalRevenue,
+      totalTransactions: totalItems,
+      completedTransactions: 0,
+      pendingTransactions: 0,
+      activeTransactions: 0
+    };
+    
+    statusCounts.rows.forEach(row => {
+      summary[`${row.status}Transactions`] = parseInt(row.count);
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        transactions: transactionsResult.rows,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(totalItems / limit),
+          totalItems,
+          itemsPerPage: parseInt(limit)
+        },
+        summary
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
-app.put('/api/transactions/:id/status', authenticateToken, requireAdmin, (req, res) => {
-  const { status } = req.body;
-  const validStatuses = ['pending', 'active', 'completed', 'cancelled'];
-  
-  if (!status || !validStatuses.includes(status)) {
-    return res.status(400).json({
-      success: false,
-      message: 'Valid status is required (pending, active, completed, cancelled)'
+app.put('/api/transactions/:id/status', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ['pending', 'active', 'completed', 'cancelled'];
+    
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid status is required (pending, active, completed, cancelled)'
+      });
+    }
+    
+    const result = await transaction(async (client) => {
+      // Update transaction status
+      const transactionResult = await client.query(
+        'UPDATE transactions SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+        [status, req.params.id]
+      );
+      
+      if (transactionResult.rows.length === 0) {
+        throw new Error('Transaction not found');
+      }
+      
+      const updatedTransaction = transactionResult.rows[0];
+      
+      // Update corresponding order status
+      await client.query(
+        'UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [status, updatedTransaction.order_id]
+      );
+      
+      return updatedTransaction;
     });
-  }
-  
-  const transactionIndex = transactions.findIndex(t => t.id === req.params.id);
-  if (transactionIndex === -1) {
-    return res.status(404).json({
-      success: false,
-      message: 'Transaction not found'
+    
+    res.json({
+      success: true,
+      message: 'Transaction status updated successfully',
+      data: result
     });
+  } catch (error) {
+    next(error);
   }
-  
-  transactions[transactionIndex].status = status;
-  transactions[transactionIndex].updatedAt = new Date();
-  
-  // Update corresponding order status
-  const orderIndex = orders.findIndex(o => o.id === transactions[transactionIndex].orderId);
-  if (orderIndex !== -1) {
-    orders[orderIndex].status = status;
-    orders[orderIndex].updatedAt = new Date();
-  }
-  
-  res.json({
-    success: true,
-    message: 'Transaction status updated successfully',
-    data: transactions[transactionIndex]
-  });
 });
 
 // Categories endpoint
-app.get('/api/categories', (req, res) => {
-  const categories = [...new Set(products.map(p => p.category))];
-  res.json({
-    success: true,
-    data: categories
-  });
+app.get('/api/categories', async (req, res) => {
+  try {
+    const result = await query('SELECT DISTINCT category FROM products ORDER BY category');
+    const categories = result.rows.map(row => row.category);
+    
+    res.json({
+      success: true,
+      data: categories
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Statistics endpoint (Admin only)
-app.get('/api/statistics', authenticateToken, requireAdmin, (req, res) => {
-  const totalRevenue = transactions
-    .filter(t => t.status === 'completed')
-    .reduce((sum, t) => sum + t.total, 0);
-  
-  const totalUsers = users.filter(u => u.role === 'user').length;
-  const totalProducts = products.length;
-  const availableProducts = products.filter(p => p.available).length;
-  
-  const recentOrders = orders
-    .filter(o => new Date(o.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
-    .length;
-  
-  res.json({
-    success: true,
-    data: {
-      revenue: {
-        total: totalRevenue,
-        thisMonth: transactions
-          .filter(t => t.status === 'completed' && new Date(t.createdAt).getMonth() === new Date().getMonth())
-          .reduce((sum, t) => sum + t.total, 0)
-      },
-      users: {
-        total: totalUsers,
-        newThisWeek: users
-          .filter(u => u.role === 'user' && new Date(u.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
-          .length
-      },
-      products: {
-        total: totalProducts,
-        available: availableProducts,
-        outOfStock: totalProducts - availableProducts
-      },
-      orders: {
-        total: orders.length,
-        recentOrders,
-        pending: orders.filter(o => o.status === 'pending').length,
-        active: orders.filter(o => o.status === 'active').length,
-        completed: orders.filter(o => o.status === 'completed').length
+app.get('/api/statistics', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    // Get revenue statistics
+    const revenueResult = await query(`
+      SELECT 
+        COALESCE(SUM(CASE WHEN status = 'completed' THEN total ELSE 0 END), 0) as total_revenue,
+        COALESCE(SUM(CASE WHEN status = 'completed' AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE) THEN total ELSE 0 END), 0) as this_month_revenue
+      FROM transactions
+    `);
+    
+    // Get user statistics
+    const userResult = await query(`
+      SELECT 
+        COUNT(*) as total_users,
+        COUNT(CASE WHEN created_at > CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as new_this_week
+      FROM users 
+      WHERE role = 'user'
+    `);
+    
+    // Get product statistics
+    const productResult = await query(`
+      SELECT 
+        COUNT(*) as total_products,
+        COUNT(CASE WHEN available = true THEN 1 END) as available_products,
+        COUNT(CASE WHEN available = false THEN 1 END) as out_of_stock
+      FROM products
+    `);
+    
+    // Get order statistics
+    const orderResult = await query(`
+      SELECT 
+        COUNT(*) as total_orders,
+        COUNT(CASE WHEN created_at > CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as recent_orders,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_orders,
+        COUNT(CASE WHEN status = 'active' THEN 1 END) as active_orders,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_orders
+      FROM orders
+    `);
+    
+    const revenue = revenueResult.rows[0];
+    const users = userResult.rows[0];
+    const products = productResult.rows[0];
+    const orders = orderResult.rows[0];
+    
+    res.json({
+      success: true,
+      data: {
+        revenue: {
+          total: parseFloat(revenue.total_revenue),
+          thisMonth: parseFloat(revenue.this_month_revenue)
+        },
+        users: {
+          total: parseInt(users.total_users),
+          newThisWeek: parseInt(users.new_this_week)
+        },
+        products: {
+          total: parseInt(products.total_products),
+          available: parseInt(products.available_products),
+          outOfStock: parseInt(products.out_of_stock)
+        },
+        orders: {
+          total: parseInt(orders.total_orders),
+          recentOrders: parseInt(orders.recent_orders),
+          pending: parseInt(orders.pending_orders),
+          active: parseInt(orders.active_orders),
+          completed: parseInt(orders.completed_orders)
+        }
       }
-    }
-  });
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Error handling
@@ -772,6 +861,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📚 API Documentation: http://localhost:${PORT}/api/health`);
   console.log(`🔑 Admin credentials: admin / admin123`);
+  console.log(`🗄️  Database: PostgreSQL`);
 });
 
 module.exports = app;
