@@ -701,6 +701,144 @@ Get platform statistics and analytics.
 
 ---
 
+## Cart Management Endpoints
+
+### Get User Cart
+
+#### GET /api/cart
+
+Get current user's cart items.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "uuid-string",
+        "product_id": 1,
+        "quantity": 2,
+        "rental_days": 3,
+        "created_at": "2024-01-20T10:30:00.000Z",
+        "name": "Feixiao Cosplay Set",
+        "description": "Complete cosplay set",
+        "price": 150000,
+        "price_unit": "item",
+        "category": "Honkai Star-Rail",
+        "image_url": "/img/ayang.png",
+        "available": true,
+        "subtotal": 900000
+      }
+    ],
+    "total": 900000,
+    "itemCount": 2
+  }
+}
+```
+
+### Add Product to Cart
+
+#### POST /api/cart
+
+Add a product to user's cart.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "productId": 1,
+  "quantity": 2,
+  "rentalDays": 3
+}
+```
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Product added to cart successfully",
+  "data": {
+    "id": "uuid-string",
+    "product_id": 1,
+    "quantity": 2,
+    "rental_days": 3,
+    "created_at": "2024-01-20T10:30:00.000Z",
+    "name": "Feixiao Cosplay Set",
+    "price": 150000,
+    "subtotal": 900000
+  }
+}
+```
+
+### Update Cart Item
+
+#### PUT /api/cart/:id
+
+Update quantity or rental days of a cart item.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "quantity": 3,
+  "rentalDays": 5
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Cart item updated successfully",
+  "data": {
+    "id": "uuid-string",
+    "product_id": 1,
+    "quantity": 3,
+    "rental_days": 5,
+    "subtotal": 2250000
+  }
+}
+```
+
+### Remove Item from Cart
+
+#### DELETE /api/cart/:id
+
+Remove a specific item from cart.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Item removed from cart successfully"
+}
+```
+
+### Clear Cart
+
+#### DELETE /api/cart
+
+Remove all items from user's cart.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Cart cleared successfully"
+}
+```
+
+---
+
 ## Error Responses
 
 ### 400 Bad Request
