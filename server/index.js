@@ -130,6 +130,82 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Landing page endpoint
+app.get('/api/landing', async (req, res) => {
+  try {
+    // Get featured products (latest 4 products)
+    const featuredProducts = await query(
+      'SELECT * FROM products WHERE available = true ORDER BY created_at DESC LIMIT 4'
+    );
+    
+    // Get categories with product counts
+    const categoriesResult = await query(`
+      SELECT 
+        category, 
+        COUNT(*) as product_count,
+        COUNT(CASE WHEN available = true THEN 1 END) as available_count
+      FROM products 
+      GROUP BY category 
+      ORDER BY product_count DESC
+    `);
+    
+    // Get basic statistics
+    const statsResult = await query(`
+      SELECT 
+        (SELECT COUNT(*) FROM products WHERE available = true) as total_products,
+        (SELECT COUNT(DISTINCT category) FROM products) as total_categories,
+        (SELECT COUNT(*) FROM users WHERE role = 'user') as total_customers,
+        (SELECT COUNT(*) FROM transactions WHERE status = 'completed') as completed_orders
+    `);
+    
+    const stats = statsResult.rows[0];
+    
+    res.json({
+      success: true,
+      data: {
+        hero: {
+          title: "Sewa Equipment Berkualitas, Untuk Kebutuhan Cosplaymu",
+          subtitle: "Produk berkualitas, periode sewa fleksibel, dan layanan yang luar biasa. Rasakan kenyamanan menyewa daripada membeli.",
+          cta: "Cari Produk"
+        },
+        featuredProducts: featuredProducts.rows,
+        categories: categoriesResult.rows,
+        statistics: {
+          totalProducts: parseInt(stats.total_products),
+          totalCategories: parseInt(stats.total_categories),
+          totalCustomers: parseInt(stats.total_customers),
+          completedOrders: parseInt(stats.completed_orders)
+        },
+        testimonials: [
+          {
+            id: 1,
+            name: "Sarah Wilson",
+            rating: 5,
+            comment: "Amazing quality cosplay items! Perfect for my Kafka cosplay.",
+            avatar: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=1"
+          },
+          {
+            id: 2,
+            name: "Mike Chen",
+            rating: 5,
+            comment: "Great service and fast delivery. Will rent again!",
+            avatar: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=1"
+          },
+          {
+            id: 3,
+            name: "Anna Rodriguez",
+            rating: 5,
+            comment: "Professional equipment at affordable rental prices.",
+            avatar: "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=1"
+          }
+        ]
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Authentication endpoints
 app.post('/api/auth/register', validateUser, async (req, res) => {
   try {
